@@ -58,7 +58,7 @@ hprebn = embcat @ W1 + b1
 bnmeani = 1/n * hprebn.sum(0, keepdim=True) # mean
 bndiff = hprebn - bnmeani
 bndiff2 = bndiff**2
-bnvar = 1/(n-1) * bndiff2.sum(0, keepdim=True)
+bnvar = 1/(n-1) * bndiff2.sum(0, keepdim=True) # it's `1/n * ...` in the paper for training and `1/(n-1)` (Bessel's correction) for inference, we use Bessel's corr. always
 bnvar_inv = (bnvar + 1e-5)**-0.5
 bnraw = bndiff * bnvar_inv
 hpreact = bngain * bnraw + bnbias
@@ -186,3 +186,37 @@ cmp('logits', dlogits, logits)
 # Find derivative of a@b+c on paper w.r.t. a, you will see that 
 
 dh = dlogits @ W2.T
+dW2 = h.T @ dlogits
+db2 = dlogits.sum(0)
+
+cmp('h', dh, h)
+cmp('W2', dW2, W2)
+cmp('b2', db2, b2)
+
+# tanh' = 1 - tanh^2
+dhpreact = (1 - h**2) * dh
+cmp('hpreact', dhpreact, hpreact)
+
+dbngain = (bnraw * dhpreact).sum(0, keepdim=True)
+dbnraw = bngain * dhpreact
+dbnbias = dhpreact.sum(0, keepdim=True)
+
+cmp('bngain', dbngain, bngain)
+cmp('bnraw', dbnraw, bnraw)
+cmp('bnbias', dbnbias, bnbias)
+
+dbndiff = bnvar_inv * dbnraw
+dbnvar_inv = (bndiff * dbnraw).sum(0, keepdim=True)
+
+cmp('bnvar_inv', dbnvar_inv, bnvar_inv)
+
+dbnvar = -0.5 * ((bnvar + 1e-5)**-1.5) * dbnvar_inv
+
+cmp('bnvar', dbnvar, bnvar)
+
+dbndiff2 = 1/(n-1) * torch.ones_like(bndiff2) * dbnvar
+
+cmp('bndiff2', dbndiff2, bndiff2)
+
+cmp('bndiff', dbndiff, bndiff)
+
