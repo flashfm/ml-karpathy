@@ -531,9 +531,9 @@ def optimize():
 
             loss.backward()
 
+        # since DDP averages gradients, we want to average loss as well to print it later on rank0
+        # dist.all_reduce() gets average from all ranks and deposits it back to all ranks (like with gradient)
         if ddp:
-            # since DDP averages gradients, we want to average loss as well to print it later on rank0
-            # dist.all_reduce() gets average from all ranks and deposits it back to all ranks (like with gradient)
             dist.all_reduce(loss_accum, op = dist.ReduceOp.AVG)
 
         # clipping the grad vector norm (aka length) to 1.0 - reason: see below in optimizations
@@ -600,8 +600,8 @@ if ddp:
 
 # 7. Use gradient accumulation to run any batch size on a small GPU when such large batch size does not fit into memory
 
-# 8. Use multiple GPUs in parallel: DistributedDataParallel (DDP) class, see setup_ddp() func
-# Note, when backprop is done, the DDP automatically averages gradients calculated on each of the parallel processes
+# 8. Use multiple GPUs in parallel: DistributedDataParallel (DDP) class, see ddp variable
+# Note, when backprop is done, DDP automatically averages gradients calculated on each of the parallel processes
 # and then sends it to every process again.
 # Since DDP is not batch-aware, we did special optimization to do so only at the end of the gradient accumulation (after grad_accum_steps steps).
 
